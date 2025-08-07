@@ -1,0 +1,80 @@
+# Install plotly and folium if not already
+!pip install -q plotly folium
+
+# === IMPORTS ===
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+import folium
+from folium.plugins import HeatMap
+import plotly.express as px
+
+# === SETUP ===
+sns.set(style="whitegrid")
+plt.rcParams["figure.figsize"] = (10, 5)
+
+# === LOAD DATA ===
+df = pd.read_csv("sample_traffic_accidents.csv", parse_dates=['Date_Time'])
+
+# === CLEANING ===
+df.drop_duplicates(inplace=True)
+df.dropna(subset=['Latitude', 'Longitude', 'Date_Time', 'Weather_Condition', 'Road_Condition'], inplace=True)
+
+# === FEATURE ENGINEERING ===
+df['Hour'] = df['Date_Time'].dt.hour
+df['Month'] = df['Date_Time'].dt.month_name()
+df['DayOfWeek'] = df['Date_Time'].dt.day_name()
+
+# === VISUALIZATIONS ===
+
+# 1. Accidents by Hour
+sns.countplot(data=df, x='Hour', hue='Hour', palette='coolwarm', legend=False)
+plt.title("Accidents by Hour of Day")
+plt.xlabel("Hour")
+plt.ylabel("Number of Accidents")
+plt.show()
+
+# 2. Weather Condition Distribution
+sns.countplot(data=df, y='Weather_Condition', hue='Weather_Condition',
+              order=df['Weather_Condition'].value_counts().index,
+              palette='viridis', legend=False)
+plt.title("Accidents by Weather Condition")
+plt.show()
+
+# 3. Road Condition Distribution
+sns.countplot(data=df, y='Road_Condition', hue='Road_Condition',
+              order=df['Road_Condition'].value_counts().index,
+              palette='magma', legend=False)
+plt.title("Accidents by Road Condition")
+plt.show()
+
+# 4. Day of Week Trends
+order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+sns.countplot(data=df, x='DayOfWeek', hue='DayOfWeek', order=order, palette='Set2', legend=False)
+plt.title("Weekly Accident Trends")
+plt.xticks(rotation=45)
+plt.show()
+
+# 5. Heatmap - Weather vs Road Condition
+pivot = pd.pivot_table(df, index='Weather_Condition', columns='Road_Condition', aggfunc='size', fill_value=0)
+sns.heatmap(pivot, annot=True, fmt='d', cmap='YlGnBu')
+plt.title("Weather vs Road Conditions During Accidents")
+plt.show()
+
+# 6. Folium Static Heatmap
+map_center = [df['Latitude'].mean(), df['Longitude'].mean()]
+accident_map = folium.Map(location=map_center, zoom_start=11)
+heat_data = df[['Latitude', 'Longitude']].values.tolist()
+HeatMap(heat_data).add_to(accident_map)
+
+# Display Folium map (Colab)
+from IPython.display import display
+display(accident_map)
+
+# 7. Plotly Interactive Map
+fig = px.scatter_mapbox(df.sample(1000), lat="Latitude", lon="Longitude",
+                        color="Weather_Condition", zoom=10,
+                        mapbox_style="carto-positron", height=600,
+                        title="Interactive Map of Traffic Accidents")
+fig.show()
